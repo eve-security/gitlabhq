@@ -54,7 +54,8 @@ module Gitlab
         end
 
         def name
-          auth.info.name.to_s.force_encoding("utf-8")
+          nombre = auth.info.first_name.to_s + " " + auth.info.last_name.to_s
+          nombre.force_encoding("utf-8")
         end
 
         def username
