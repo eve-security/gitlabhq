@@ -119,6 +119,7 @@ class User < ActiveRecord::Base
   validates :avatar, file_size: { maximum: 100.kilobytes.to_i }
 
   before_validation :generate_password, on: :create
+  before_validation :activate_user, on: :create, if: :ldap_user?
   before_validation :sanitize_attrs
 
   before_save :ensure_authentication_token
@@ -405,4 +406,10 @@ class User < ActiveRecord::Base
     project.namespace != namespace &&
       project.project_member(self)
   end
+
+  protected
+    def activate_user
+      skip_confirmation!
+    end
+
 end
