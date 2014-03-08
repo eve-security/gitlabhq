@@ -36,9 +36,19 @@ module MergeRequestsHelper
 
   def merge_path_description(merge_request, separator)
     if merge_request.for_fork?
-      "Project:Branches: #{@merge_request.source_project.path_with_namespace}:#{@merge_request.source_branch} #{separator} #{@merge_request.target_project.path_with_namespace}:#{@merge_request.target_branch}"
+      "Project:Branches: #{@merge_request.source_project_path}:#{@merge_request.source_branch} #{separator} #{@merge_request.target_project.path_with_namespace}:#{@merge_request.target_branch}"
     else
       "Branches: #{@merge_request.source_branch} #{separator} #{@merge_request.target_branch}"
+    end
+  end
+
+  def merge_request_alert_class(merge_request)
+    if merge_request.merged?
+      'alert-info'
+    elsif merge_request.closed?
+      'alert-danger'
+    else
+      'alert-success'
     end
   end
 end

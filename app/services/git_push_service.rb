@@ -32,7 +32,7 @@ class GitPushService
     end
 
     if push_to_branch?(ref)
-      project.execute_hooks(@push_data.dup)
+      project.execute_hooks(@push_data.dup, :push_hooks)
       project.execute_services(@push_data.dup)
     end
 
@@ -188,8 +188,6 @@ class GitPushService
   end
 
   def commit_user commit
-    User.where(email: commit.author_email).first ||
-      User.where(name: commit.author_name).first ||
-      user
+    User.find_for_commit(commit.author_email, commit.author_name) || user
   end
 end

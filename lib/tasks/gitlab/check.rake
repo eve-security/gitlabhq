@@ -3,6 +3,7 @@ namespace :gitlab do
   task check: %w{gitlab:env:check
                  gitlab:gitlab_shell:check
                  gitlab:sidekiq:check
+                 gitlab:ldap:check
                  gitlab:app:check}
 
 
@@ -278,8 +279,6 @@ namespace :gitlab do
       start_checking "Environment"
 
       check_gitlab_git_config
-      check_python2_exists
-      check_python2_version
 
       finished_checking "Environment"
     end
@@ -309,52 +308,6 @@ namespace :gitlab do
         )
         for_more_information(
           see_installation_guide_section "GitLab"
-        )
-        fix_and_rerun
-      end
-    end
-
-    def check_python2_exists
-      print "Has python2? ... "
-
-      # Python prints its version to STDERR
-      # so we can't just use run("python2 --version")
-      if run_and_match("which python2", /python2$/)
-        puts "yes".green
-      else
-        puts "no".red
-        try_fixing_it(
-          "Make sure you have Python 2.5+ installed",
-          "Link it to python2"
-        )
-        for_more_information(
-          see_installation_guide_section "Packages / Dependencies"
-        )
-        fix_and_rerun
-      end
-    end
-
-    def check_python2_version
-      print "python2 is supported version? ... "
-
-      # Python prints its version to STDERR
-      # so we can't just use run("python2 --version")
-
-      unless run_and_match("which python2", /python2$/)
-        puts "can't check because of previous errors".magenta
-        return
-      end
-
-      if `python2 --version 2>&1` =~ /2\.[567]\.\d/
-        puts "yes".green
-      else
-        puts "no".red
-        try_fixing_it(
-          "Make sure you have Python 2.5+ installed",
-          "Link it to python2"
-        )
-        for_more_information(
-          see_installation_guide_section "Packages / Dependencies"
         )
         fix_and_rerun
       end
@@ -679,6 +632,46 @@ namespace :gitlab do
     end
   end
 
+  namespace :ldap do
+    task :check, [:limit] => :environment do |t, args|
+      # Only show up to 100 results because LDAP directories can be very big.
+      # This setting only affects the `rake gitlab:check` script.
+      args.with_defaults(limit: 100)
+      warn_user_is_not_gitlab
+      start_checking "LDAP"
+
+      if ldap_config.enabled
+        print_users(args.limit)
+      else
+        puts 'LDAP is disabled in config/gitlab.yml'
+      end
+
+      finished_checking "LDAP"
+    end
+
+    def print_users(limit)
+      puts "LDAP users with access to your GitLab server (only showing the first #{limit} results)"
+      ldap.search(attributes: attributes, filter: filter, size: limit, return_result: false) do |entry|
+        puts "DN: #{entry.dn}\t#{ldap_config.uid}: #{entry[ldap_config.uid]}"
+      end
+    end
+
+    def attributes
+      [ldap_config.uid]
+    end
+
+    def filter
+      Net::LDAP::Filter.present?(ldap_config.uid)
+    end
+
+    def ldap
+      @ldap ||= OmniAuth::LDAP::Adaptor.new(ldap_config).connection
+    end
+
+    def ldap_config
+      @ldap_config ||= Gitlab.config.ldap
+    end
+  end
 
   # Helper methods
   ##########################

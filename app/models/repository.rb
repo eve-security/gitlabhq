@@ -57,7 +57,7 @@ class Repository
 
   def recent_branches(limit = 20)
     branches.sort do |a, b|
-      b.commit.committed_date <=> a.commit.committed_date
+      commit(b.target).committed_date <=> commit(a.target).committed_date
     end[0..limit]
   end
 
@@ -133,6 +133,7 @@ class Repository
     Rails.cache.delete(cache_key(:tag_names))
     Rails.cache.delete(cache_key(:commit_count))
     Rails.cache.delete(cache_key(:graph_log))
+    Rails.cache.delete(cache_key(:readme))
   end
 
   def graph_log
@@ -158,5 +159,53 @@ class Repository
 
   def blob_at(sha, path)
     Gitlab::Git::Blob.find(self, sha, path)
+  end
+
+  def readme
+    Rails.cache.fetch(cache_key(:readme)) do
+      tree(:head).readme
+    end
+  end
+
+  def head_commit
+    commit(self.root_ref)
+  end
+
+  def tree(sha = :head, path = nil)
+    if sha == :head
+      sha = head_commit.sha
+    end
+
+    Tree.new(self, sha, path)
+  end
+
+  def blob_at_branch(branch_name, path)
+    last_commit = commit(branch_name)
+
+    if last_commit
+      blob_at(last_commit.sha, path)
+    else
+      nil
+    end
+  end
+
+  # Returns url for submodule
+  #
+  # Ex.
+  #   @repository.submodule_url_for('master', 'rack')
+  #   # => git@localhost:rack.git
+  #
+  def submodule_url_for(ref, path)
+    if submodules(ref).any?
+      submodule = submodules(ref)[path]
+
+      if submodule
+        submodule['url']
+      end
+    end
+  end
+
+  def last_commit_for_path(sha, path)
+    commits(sha, path, 1).last
   end
 end

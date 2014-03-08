@@ -18,7 +18,7 @@ class Event < ActiveRecord::Base
   attr_accessible :project, :action, :data, :author_id, :project_id,
                   :target_id, :target_type
 
-  default_scope where("author_id IS NOT NULL")
+  default_scope { where.not(author_id: nil) }
 
   CREATED   = 1
   UPDATED   = 2
@@ -56,11 +56,13 @@ class Event < ActiveRecord::Base
     end
 
     def create_ref_event(project, user, ref, action = 'add', prefix = 'refs/heads')
+      commit = project.repository.commit(ref.target)
+
       if action.to_s == 'add'
         before = '00000000'
-        after = ref.commit.id
+        after = commit.id
       else
-        before = ref.commit.id
+        before = commit.id
         after = '00000000'
       end
 
@@ -223,7 +225,7 @@ class Event < ActiveRecord::Base
 
   # Max 20 commits from push DESC
   def commits
-    @commits ||= data[:commits].reverse
+    @commits ||= (data[:commits] || []).reverse
   end
 
   def commits_count

@@ -105,6 +105,10 @@ module CommitsHelper
     branches.sort.map { |branch| link_to(branch, project_tree_path(project, branch)) }.join(", ").html_safe
   end
 
+  def get_old_file(project, commit, diff)
+    project.repository.blob_at(commit.parent_id, diff.old_path) if commit.parent_id
+  end
+
   protected
 
   # Private: Returns a link to a person. If the person has a matching user and
@@ -118,16 +122,17 @@ module CommitsHelper
   def commit_person_link(commit, options = {})
     source_name = commit.send "#{options[:source]}_name".to_sym
     source_email = commit.send "#{options[:source]}_email".to_sym
+    
+    user = User.find_for_commit(source_email, source_name)
+    person_name = user.nil? ? source_name : user.name
+    person_email = user.nil? ? source_email : user.email
+    
     text = if options[:avatar]
-            avatar = image_tag(avatar_icon(source_email, options[:size]), class: "avatar #{"s#{options[:size]}" if options[:size]}", width: options[:size], alt: "")
-            %Q{#{avatar} <span class="commit-#{options[:source]}-name">#{source_name}</span>}
+            avatar = image_tag(avatar_icon(person_email, options[:size]), class: "avatar #{"s#{options[:size]}" if options[:size]}", width: options[:size], alt: "")
+            %Q{#{avatar} <span class="commit-#{options[:source]}-name">#{person_name}</span>}
           else
-            source_name
+            person_name
           end
-
-    # Prefer email match over name match
-    user = User.where(email: source_email).first
-    user ||= User.where(name: source_name).first
 
     options = {
       class: "commit-#{options[:source]}-link has_tooltip",

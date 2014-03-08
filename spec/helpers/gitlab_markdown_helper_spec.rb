@@ -4,7 +4,7 @@ describe GitlabMarkdownHelper do
   include ApplicationHelper
   include IssuesHelper
 
-  let!(:project) { create(:project_with_code) }
+  let!(:project) { create(:project) }
 
   let(:user)          { create(:user, username: 'gfm') }
   let(:commit)        { project.repository.commit }
@@ -16,6 +16,7 @@ describe GitlabMarkdownHelper do
   before do
     # Helper expects a @project instance variable
     @project = project
+    @repository = project.repository
   end
 
   describe "#gfm" do
@@ -347,8 +348,21 @@ describe GitlabMarkdownHelper do
     it "should handle references in headers" do
       actual = "\n# Working around ##{issue.iid}\n## Apply !#{merge_request.iid}"
 
-      markdown(actual).should match(%r{<h1[^<]*>Working around <a.+>##{issue.iid}</a></h1>})
-      markdown(actual).should match(%r{<h2[^<]*>Apply <a.+>!#{merge_request.iid}</a></h2>})
+      markdown(actual, {no_header_anchors:true}).should match(%r{<h1[^<]*>Working around <a.+>##{issue.iid}</a></h1>})
+      markdown(actual, {no_header_anchors:true}).should match(%r{<h2[^<]*>Apply <a.+>!#{merge_request.iid}</a></h2>})
+    end
+
+    it "should add ids and links to headers" do
+      # Test every rule except nested tags.
+      text = '..Ab_c-d. e..'
+      id = 'ab_c-d-e'
+      markdown("# #{text}").should match(%r{<h1 id="#{id}">#{text}<a href="[^"]*##{id}"></a></h1>})
+      markdown("# #{text}", {no_header_anchors:true}).should == "<h1>#{text}</h1>"
+
+      id = 'link-text'
+      markdown("# [link text](url) ![img alt](url)").should match(
+        %r{<h1 id="#{id}"><a href="[^"]*url">link text</a> <img[^>]*><a href="[^"]*##{id}"></a></h1>}
+      )
     end
 
     it "should handle references in lists" do
@@ -378,9 +392,10 @@ describe GitlabMarkdownHelper do
     it "should leave code blocks untouched" do
       helper.stub(:user_color_scheme_class).and_return(:white)
 
-      helper.markdown("\n    some code from $#{snippet.id}\n    here too\n").should include("<div class=\"white\"><div class=\"highlight\"><pre><span class=\"n\">some</span> <span class=\"n\">code</span> <span class=\"n\">from</span> $#{snippet.id}\n<span class=\"n\">here</span> <span class=\"n\">too</span>\n</pre></div></div>")
+      target_html = "\n<div class=\"highlighted-data white\">\n  <div class=\"highlight\">\n    <pre><code class=\"\">some code from $#{snippet.id}\nhere too\n</code></pre>\n  </div>\n</div>\n\n"
 
-      helper.markdown("\n```\nsome code from $#{snippet.id}\nhere too\n```\n").should include("<div class=\"white\"><div class=\"highlight\"><pre><span class=\"n\">some</span> <span class=\"n\">code</span> <span class=\"n\">from</span> $#{snippet.id}\n<span class=\"n\">here</span> <span class=\"n\">too</span>\n</pre></div></div>")
+      helper.markdown("\n    some code from $#{snippet.id}\n    here too\n").should == target_html
+      helper.markdown("\n```\nsome code from $#{snippet.id}\nhere too\n```\n").should == target_html
     end
 
     it "should leave inline code untouched" do
@@ -392,7 +407,7 @@ describe GitlabMarkdownHelper do
     end
 
     it "should leave ref-like href of 'manual' links untouched" do
-      markdown("why not [inspect !#{merge_request.iid}](http://example.tld/#!#{merge_request.iid})").should == "<p>why not <a href=\"http://example.tld/#!#{merge_request.iid}\">inspect </a><a href=\"#{project_merge_request_url(project, merge_request)}\" class=\"gfm gfm-merge_request \" title=\"Merge Request: #{merge_request.title}\">!#{merge_request.iid}</a><a href=\"http://example.tld/#!#{merge_request.iid}\"></a></p>\n"
+      markdown("why not [inspect !#{merge_request.iid}](http://example.tld/#!#{merge_request.iid})").should == "<p>why not <a href=\"http://example.tld/#!#{merge_request.iid}\">inspect </a><a class=\"gfm gfm-merge_request \" href=\"#{project_merge_request_url(project, merge_request)}\" title=\"Merge Request: #{merge_request.title}\">!#{merge_request.iid}</a><a href=\"http://example.tld/#!#{merge_request.iid}\"></a></p>\n"
     end
 
     it "should leave ref-like src of images untouched" do
@@ -430,11 +445,29 @@ describe GitlabMarkdownHelper do
       expected = "<p><a href=\"/#{project.path_with_namespace}/wikis/test/link\">Link</a></p>\n"
       markdown(actual).should match(expected)
     end
+
+    it "should handle relative urls in reference links for a file in master" do
+      actual = "[GitLab API doc][GitLab readme]\n [GitLab readme]: doc/api/README.md\n"
+      expected = "<p><a href=\"/#{project.path_with_namespace}/blob/master/doc/api/README.md\">GitLab API doc</a></p>\n"
+      markdown(actual).should match(expected)
+    end
+
+    it "should handle relative urls in reference links for a directory in master" do
+      actual = "[GitLab API doc directory][GitLab readmes]\n [GitLab readmes]: doc/api/\n"
+      expected = "<p><a href=\"/#{project.path_with_namespace}/tree/master/doc/api/\">GitLab API doc directory</a></p>\n"
+      markdown(actual).should match(expected)
+    end
+
+     it "should not handle malformed relative urls in reference links for a file in master" do
+      actual = "[GitLab readme]: doc/api/README.md\n"
+      expected = ""
+      markdown(actual).should match(expected)
+    end
   end
 
   describe "#render_wiki_content" do
     before do
-      @wiki = stub('WikiPage')
+      @wiki = double('WikiPage')
       @wiki.stub(:content).and_return('wiki content')
     end
 
@@ -448,7 +481,7 @@ describe GitlabMarkdownHelper do
 
     it "should use the Gollum renderer for all other file types" do
       @wiki.stub(:format).and_return(:rdoc)
-      formatted_content_stub = stub('formatted_content')
+      formatted_content_stub = double('formatted_content')
       formatted_content_stub.should_receive(:html_safe)
       @wiki.stub(:formatted_content).and_return(formatted_content_stub)
 
