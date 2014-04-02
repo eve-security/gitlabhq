@@ -52,7 +52,7 @@ module Projects
       @project.creator = current_user
 
       if @project.save
-        unless @project.group
+        if !@project.group || @project.group.has_student?(current_user)
           @project.users_projects.create(
             project_access: UsersProject::MASTER,
             user: current_user
@@ -74,7 +74,7 @@ module Projects
 
     def allowed_namespace?(user, namespace_id)
       namespace = Namespace.find_by(id: namespace_id)
-      current_user.can?(:manage_namespace, namespace)
+      current_user.can?(:manage_namespace, namespace) || current_user.can?(:create_project, namespace)
     end
   end
 end

@@ -1,6 +1,6 @@
 module NamespacesHelper
   def namespaces_options(selected = :current_user, scope = :default)
-    groups = current_user.owned_groups
+    groups = current_user.owned_groups.to_a + current_user.student_groups.to_a
     users = [current_user.namespace]
 
     group_opts = ["Groups", groups.sort_by(&:human_name).map {|g| [g.human_name, g.id]} ]

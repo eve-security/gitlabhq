@@ -84,6 +84,7 @@ class User < ActiveRecord::Base
   has_many :users_groups, dependent: :destroy
   has_many :groups, through: :users_groups
   has_many :owned_groups, -> { where users_groups: { group_access: UsersGroup::OWNER } }, through: :users_groups, source: :group
+  has_many :student_groups, -> { where users_groups: { group_access: UsersGroup::STUDENT } }, through: :users_groups, source: :group
   # Projects
   has_many :groups_projects,          through: :groups, source: :projects
   has_many :personal_projects,        through: :namespace, source: :projects

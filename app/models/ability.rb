@@ -176,6 +176,10 @@ class Ability
         rules << :read_group
       end
 
+      if group.students.include?(user)
+        rules << :create_project
+      end
+
       # Only group owner and administrators can manage group
       if group.has_owner?(user) || user.admin?
         rules += [
