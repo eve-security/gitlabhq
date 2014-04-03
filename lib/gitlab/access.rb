@@ -10,6 +10,7 @@ module Gitlab
     DEVELOPER = 30
     MASTER    = 40
     OWNER     = 50
+    STUDENT   = 60
 
     class << self
       def values
@@ -20,6 +21,7 @@ module Gitlab
         {
           "Guest"     => GUEST,
           "Reporter"  => REPORTER,
+          "Student"   => STUDENT,
           "Developer" => DEVELOPER,
           "Master"    => MASTER,
         }

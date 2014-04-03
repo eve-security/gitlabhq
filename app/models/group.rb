@@ -34,6 +34,10 @@ class Group < Namespace
     @owners ||= users_groups.owners.map(&:user)
   end
 
+  def students
+    @students ||= users_groups.students.map(&:user)
+  end
+
   def add_users(user_ids, group_access)
     user_ids.compact.each do |user_id|
       user = self.users_groups.find_or_initialize_by(user_id: user_id)
@@ -51,6 +55,10 @@ class Group < Namespace
 
   def has_owner?(user)
     owners.include?(user)
+  end
+
+  def has_student?(user)
+    students.include?(user)
   end
 
   def last_owner?(user)
