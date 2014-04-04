@@ -282,6 +282,15 @@ class User < ActiveRecord::Base
                              end
   end
 
+  # Projects user has access to
+  def non_student_authorized_projects
+    @non_student_authorized_projects ||= begin
+                                           group_project_ids = groups_projects.where(['users_groups.group_access != ?', UsersGroup::STUDENT]).pluck :id
+                                           project_ids = (personal_projects.pluck(:id) + group_project_ids + projects.pluck(:id)).uniq
+                                           Project.where(id: project_ids).joins(:namespace).order('namespaces.name ASC')
+                                         end
+  end
+
   def owned_projects
     @owned_projects ||= begin
                           Project.where(namespace_id: owned_groups.pluck(:id).push(namespace.id)).joins(:namespace)

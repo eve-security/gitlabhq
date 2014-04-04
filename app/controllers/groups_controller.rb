@@ -37,7 +37,9 @@ class GroupsController < ApplicationController
     @events = event_filter.apply_filter(@events)
     @events = @events.limit(20).offset(params[:offset] || 0)
     if group.has_student?(current_user)
-      @events.reject! {|e| group.has_student?(e.author) }
+      @events.reject! do |e|
+        group.has_student?(e.author) && e.author.id != current_user.id
+      end
     end
     @last_push = current_user.recent_push
 

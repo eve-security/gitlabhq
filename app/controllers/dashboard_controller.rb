@@ -19,6 +19,9 @@ class DashboardController < ApplicationController
     @events = Event.in_projects(current_user.authorized_projects.pluck(:id))
     @events = @event_filter.apply_filter(@events)
     @events = @events.limit(20).offset(params[:offset] || 0)
+    @events.reject! do |e|
+      !e.project.group.nil? && e.project.group.has_student?(e.author) && e.author.id != current_user.id
+    end
 
     @last_push = current_user.recent_push
 
