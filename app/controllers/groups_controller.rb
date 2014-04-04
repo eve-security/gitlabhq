@@ -34,13 +34,11 @@ class GroupsController < ApplicationController
 
   def show
     @events = Event.in_projects(project_ids)
-    if group.has_student?(current_user)
-      @events = event_filter.apply_filter(@events)
-      @events.reject! {|e| group.has_student?(e.author) }
-    else
-      @events = event_filter.apply_filter(@events)
-    end
+    @events = event_filter.apply_filter(@events)
     @events = @events.limit(20).offset(params[:offset] || 0)
+    if group.has_student?(current_user)
+      @events.reject! {|e| group.has_student?(e.author) }
+    end
     @last_push = current_user.recent_push
 
     respond_to do |format|
