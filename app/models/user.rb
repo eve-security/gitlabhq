@@ -369,7 +369,7 @@ class User < ActiveRecord::Base
   end
 
   def several_namespaces?
-    owned_groups.any?
+    owned_groups.any? || student_groups.any?
   end
 
   def namespace_id
