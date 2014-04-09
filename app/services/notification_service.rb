@@ -168,6 +168,12 @@ class NotificationService
     recipients = project.team.members
     recipients = reject_muted_users(recipients, project)
 
+    if project.group
+      recipients.reject! do |u|
+        project.group.has_student?(u)
+      end
+    end
+
     recipients.each do |recipient|
       mailer.project_was_moved_email(project.id, recipient.id)
     end
